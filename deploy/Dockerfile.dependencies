@@ -27,7 +27,7 @@ RUN apk upgrade --no-cache
 COPY --from=gosu-build /out/gosu /usr/local/bin/gosu
 RUN gosu nobody true
 
-FROM redis:7.4-alpine AS redis
+FROM redis:8.10-alpine AS redis
 RUN apk upgrade --no-cache
 
 FROM caddy:${CADDY_VERSION}-alpine AS caddy
