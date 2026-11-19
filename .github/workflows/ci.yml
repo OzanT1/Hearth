@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-24.04 # Playwright 1.56.1 has Chromium builds for Ubuntu 24.04.
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { persist-credentials: false }
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: '10.0.402' }
