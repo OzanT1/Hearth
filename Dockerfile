@@ -12,7 +12,7 @@ COPY src/ src/
 RUN dotnet restore src/Hearth.Api/Hearth.Api.csproj
 RUN dotnet publish src/Hearth.Api/Hearth.Api.csproj -c Release --no-restore -o /app
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.13-alpine3.24 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.15-alpine3.24 AS runtime
 WORKDIR /app
 COPY --from=build /app ./
 COPY --from=web /web/dist ./wwwroot
