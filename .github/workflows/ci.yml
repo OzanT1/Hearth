@@ -42,9 +42,13 @@ jobs:
       - run: docker build --pull --target caddy -f deploy/Dockerfile.dependencies -t hearth-caddy:ci .
       - name: Scan production image
         run: |
+          scan_failed=0
           for image in hearth:ci hearth-postgres:ci hearth-redis:ci hearth-caddy:ci; do
-            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache aquasec/trivy:latest image --scanners vuln --exit-code 1 --severity HIGH,CRITICAL "$image" || exit 1
+            echo "::group::Trivy scan for $image"
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache aquasec/trivy:latest image --scanners vuln --exit-code 1 --severity HIGH,CRITICAL "$image" || scan_failed=1
+            echo '::endgroup::'
           done
+          exit "$scan_failed"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

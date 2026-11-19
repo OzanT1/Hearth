@@ -1,17 +1,21 @@
 # Rebuild small Go executables with patched toolchain/modules instead of retaining
 # the older embedded Go runtimes shipped in the upstream service images.
-ARG CADDY_VERSION=2.11.7
-FROM golang:1.27.2-alpine AS gosu-build
+ARG CADDY_VERSION=2.11.9
+ARG GO_VERSION=1.27.4
+FROM golang:${GO_VERSION}-alpine AS gosu-build
 WORKDIR /build
 RUN go mod init hearth/gosu-build \
     && go get github.com/tianon/gosu@1.19 github.com/moby/sys/user@v0.4.1 golang.org/x/sys@v0.44.0 \
     && CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /out/gosu github.com/tianon/gosu
 
-FROM golang:1.27.2-alpine AS caddy-build
+FROM golang:${GO_VERSION}-alpine AS caddy-build
 ARG CADDY_VERSION
 WORKDIR /build
+# Use the Smallstep Go JOSE v4 migration pinned by Caddy PR #8368.
 RUN go mod init hearth/caddy-build \
-    && go get github.com/caddyserver/caddy/v2@v${CADDY_VERSION} golang.org/x/net@v0.60.0 \
+    && go get github.com/caddyserver/caddy/v2@v${CADDY_VERSION} \
+        github.com/smallstep/certificates@v0.30.3-0.20261105213751-6d5a251fbe01 \
+        go.step.sm/crypto@v0.92.0 golang.org/x/net@v0.62.0 \
     && CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /out/caddy github.com/caddyserver/caddy/v2/cmd/caddy
 # GO-2026-5932 concerns only obsolete OpenPGP packages, not the other x/crypto
 # packages Caddy uses. Fail the build if a future dependency starts importing it.
