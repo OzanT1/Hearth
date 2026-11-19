@@ -1,0 +1,33 @@
+# Rebuild small Go executables with patched toolchain/modules instead of retaining
+# the older embedded Go runtimes shipped in the upstream service images.
+ARG CADDY_VERSION=2.11.7
+FROM golang:1.27.2-alpine AS gosu-build
+WORKDIR /build
+RUN go mod init hearth/gosu-build \
+    && go get github.com/tianon/gosu@1.19 github.com/moby/sys/user@v0.4.1 golang.org/x/sys@v0.44.0 \
+    && CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /out/gosu github.com/tianon/gosu
+
+FROM golang:1.27.2-alpine AS caddy-build
+ARG CADDY_VERSION
+WORKDIR /build
+RUN go mod init hearth/caddy-build \
+    && go get github.com/caddyserver/caddy/v2@v${CADDY_VERSION} golang.org/x/net@v0.60.0 \
+    && CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /out/caddy github.com/caddyserver/caddy/v2/cmd/caddy
+# GO-2026-5932 concerns only obsolete OpenPGP packages, not the other x/crypto
+# packages Caddy uses. Fail the build if a future dependency starts importing it.
+RUN go list -deps github.com/caddyserver/caddy/v2/cmd/caddy > /out/caddy-packages.txt \
+    && if grep -q '^golang.org/x/crypto/openpgp' /out/caddy-packages.txt; then echo 'Unsafe OpenPGP import detected'; exit 1; fi
+
+FROM postgres:17-alpine AS postgres
+RUN apk upgrade --no-cache
+COPY --from=gosu-build /out/gosu /usr/local/bin/gosu
+RUN gosu nobody true
+
+FROM redis:7.4-alpine AS redis
+RUN apk upgrade --no-cache
+
+FROM caddy:${CADDY_VERSION}-alpine AS caddy
+RUN apk upgrade --no-cache
+COPY --from=caddy-build /out/caddy /usr/bin/caddy
+COPY --from=caddy-build /out/caddy-packages.txt /usr/local/share/caddy-packages.txt
+RUN caddy version

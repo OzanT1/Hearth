@@ -1,0 +1,55 @@
+name: Validate
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '10.0.402' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: dotnet restore Hearth.slnx
+      - run: dotnet build Hearth.slnx -c Release --no-restore
+      - run: dotnet test Hearth.slnx -c Release --no-build --logger trx --results-directory TestResults
+      - run: npm ci --no-audit --no-fund
+        working-directory: web
+      - run: npm audit --audit-level=low
+        working-directory: web
+      - run: npm run build && npm run test
+        working-directory: web
+      - run: docker compose up -d --wait postgres redis mailpit
+      - run: dotnet run --project src/Hearth.Api --no-launch-profile -- --migrate
+        env: { ASPNETCORE_ENVIRONMENT: Development }
+      - name: Start API
+        run: dotnet run --project src/Hearth.Api --no-launch-profile > /tmp/hearth-api.log 2>&1 &
+        env: { ASPNETCORE_ENVIRONMENT: Development, ASPNETCORE_URLS: 'http://localhost:5080' }
+      - name: Wait for API
+        run: for i in $(seq 1 60); do curl -fsS http://localhost:5080/health/ready && exit 0; sleep 2; done; cat /tmp/hearth-api.log; exit 1
+      - run: npm run generate:api && npm run typecheck
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: npm run test:e2e
+        working-directory: web
+      - run: docker build --pull -t hearth:ci .
+      - run: docker build --pull --target postgres -f deploy/Dockerfile.dependencies -t hearth-postgres:ci .
+      - run: docker build --pull --target redis -f deploy/Dockerfile.dependencies -t hearth-redis:ci .
+      - run: docker build --pull --target caddy -f deploy/Dockerfile.dependencies -t hearth-caddy:ci .
+      - name: Scan production image
+        run: |
+          for image in hearth:ci hearth-postgres:ci hearth-redis:ci hearth-caddy:ci; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache aquasec/trivy:latest image --scanners vuln --exit-code 1 --severity HIGH,CRITICAL "$image" || exit 1
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            TestResults
+            web/test-results
+            web/playwright-report

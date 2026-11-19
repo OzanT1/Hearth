@@ -1,0 +1,44 @@
+{
+  "name": "hearth-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite --host localhost",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "generate:api": "openapi-typescript http://localhost:5080/openapi/v1.json -o src/api/schema.d.ts"
+  },
+  "dependencies": {
+    "@microsoft/signalr": "10.0.11",
+    "@radix-ui/react-dialog": "1.1.15",
+    "@tanstack/react-query": "5.90.2",
+    "lucide-react": "0.468.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "react-markdown": "10.1.0",
+    "react-router-dom": "7.18.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@tailwindcss/vite": "4.1.13",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.0",
+    "@types/node": "22.18.6",
+    "@types/react": "19.1.16",
+    "@types/react-dom": "19.1.9",
+    "@vitejs/plugin-react": "5.0.3",
+    "jsdom": "27.0.0",
+    "openapi-typescript": "7.9.1",
+    "tailwindcss": "4.1.13",
+    "typescript": "5.9.2",
+    "vite": "7.3.7",
+    "vitest": "4.1.11"
+  }
+}

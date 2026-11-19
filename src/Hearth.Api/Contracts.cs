@@ -1,0 +1,33 @@
+using System.ComponentModel.DataAnnotations;
+using Hearth.Domain;
+
+namespace Hearth.Api.Contracts;
+
+public sealed record RegisterRequest([property: Required, EmailAddress, StringLength(254)] string Email, [property: Required, RegularExpression("^[a-zA-Z0-9_]{3,24}$")] string UserName, [property: Required, StringLength(128, MinimumLength = 12)] string Password);
+public sealed record LoginRequest([property: Required, EmailAddress, StringLength(254)] string Email, [property: Required, StringLength(128)] string Password, [property: StringLength(16)] string? Code = null, [property: StringLength(64)] string? RecoveryCode = null);
+public sealed record EmailRequest([property: Required, EmailAddress, StringLength(254)] string Email);
+public sealed record TokenRequest(Guid UserId, [property: Required, StringLength(4096)] string Token);
+public sealed record ResetRequest(Guid UserId, [property: Required, StringLength(4096)] string Token, [property: Required, StringLength(128, MinimumLength = 12)] string Password);
+public sealed record ProfileRequest([property: Required, StringLength(80, MinimumLength = 1)] string DisplayName, bool AllowSharedServerDms);
+public sealed record PasswordRequest([property: Required, StringLength(128)] string Password);
+public sealed record TwoFactorRequest([property: Required, StringLength(16)] string Code);
+public sealed record NameRequest([property: Required, StringLength(80, MinimumLength = 1)] string Name);
+public sealed record TargetRequest(Guid UserId);
+public sealed record ChannelRequest([property: Required, RegularExpression("^[a-z0-9][a-z0-9-]{0,79}$")] string Name, [property: Range(0, 10000)] int Position, bool IsPrivate, [property: Required, MaxLength(100)] Guid[] RoleIds, [property: Required, MaxLength(1000)] Guid[] UserIds);
+public sealed record RoleRequest([property: Required, StringLength(40, MinimumLength = 1)] string Name, Permission Permissions);
+public sealed record InviteRequest([property: Range(1, 720)] int ExpiresInHours = 168, [property: Range(1, 10000)] int? MaxUses = null);
+public sealed record RedeemRequest([property: Required, StringLength(100)] string Token);
+public sealed record SendMessageRequest(Guid ClientId, [property: Required(AllowEmptyStrings = true), StringLength(4000)] string Content, long? ReplyToId, [property: Required, MaxLength(10)] Guid[] AttachmentIds);
+public sealed record EditMessageRequest([property: Required, StringLength(4000, MinimumLength = 1)] string Content);
+public sealed record ReactionRequest([property: Required, StringLength(16)] string Emoji);
+public sealed record ReadRequest(long MessageId);
+public sealed record UserDto(Guid Id, string UserName, string DisplayName, bool AllowSharedServerDms);
+public sealed record ServerDto(Guid Id, string Name, Guid OwnerId, Permission Permissions);
+public sealed record ChannelDto(Guid Id, Guid? ServerId, string Name, int Position, bool IsPrivate, Guid? OtherUserId, long UnreadCount, Guid[] RoleIds, Guid[] UserIds);
+public sealed record RoleDto(Guid Id, string Name, Permission Permissions, bool IsDefault);
+public sealed record MemberDto(Guid Id, string UserName, string DisplayName, Guid[] RoleIds, bool Online);
+public sealed record AttachmentDto(Guid Id, string FileName, string ContentType, long Size);
+public sealed record ReactionDto(string Emoji, int Count, bool Mine);
+public sealed record MessageDto(long Id, Guid ConversationId, Guid AuthorId, string AuthorName, Guid ClientId, string Content, long? ReplyToId, DateTimeOffset CreatedAt, DateTimeOffset? EditedAt, bool Deleted, bool Blocked, AttachmentDto[] Attachments, ReactionDto[] Reactions);
+public sealed record MessagePage(MessageDto[] Items, long? NextCursor);
+public sealed record RelationshipDto(Guid Id, Guid UserId, string UserName, string DisplayName, string State, bool Incoming);

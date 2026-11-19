@@ -1,0 +1,109 @@
+name: hearth
+x-logging: &bounded-logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+x-app: &app
+  image: hearth:${RELEASE_TAG:-local}
+  build: .
+  environment: &app-env
+    ASPNETCORE_ENVIRONMENT: Production
+    AllowedHosts: ${DOMAIN:?Set DOMAIN}
+    App__PublicUrl: https://${DOMAIN}
+    App__TrustedProxy: 172.30.0.2
+    App__RegistrationAllowedEmails__0: ${APPROVED_EMAIL_1:?Set at least one approved registration email}
+    App__RegistrationAllowedEmails__1: ${APPROVED_EMAIL_2:-}
+    App__RegistrationAllowedEmails__2: ${APPROVED_EMAIL_3:-}
+    App__RegistrationAllowedEmails__3: ${APPROVED_EMAIL_4:-}
+    App__RegistrationAllowedEmails__4: ${APPROVED_EMAIL_5:-}
+    App__RegistrationAllowedEmails__5: ${APPROVED_EMAIL_6:-}
+    App__RegistrationAllowedEmails__6: ${APPROVED_EMAIL_7:-}
+    App__RegistrationAllowedEmails__7: ${APPROVED_EMAIL_8:-}
+    App__RegistrationAllowedEmails__8: ${APPROVED_EMAIL_9:-}
+    App__RegistrationAllowedEmails__9: ${APPROVED_EMAIL_10:-}
+    App__MaxRegisteredUsers: "10"
+    App__MaxStorageMb: "2048"
+    App__MaxUserStorageMb: "256"
+    ConnectionStrings__Postgres: Host=postgres;Database=hearth;Username=hearth;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD};GSS Encryption Mode=Disable
+    ConnectionStrings__Redis: redis:6379,password=${REDIS_PASSWORD:?Set REDIS_PASSWORD},abortConnect=false,connectTimeout=1000,asyncTimeout=1000,syncTimeout=1000
+    Mail__Host: ${SMTP_HOST:?Set SMTP_HOST}
+    Mail__Port: ${SMTP_PORT:-587}
+    Mail__From: ${SMTP_FROM:?Set SMTP_FROM}
+    Mail__UseTls: "true"
+    Mail__User: ${SMTP_USER:?Set SMTP_USER}
+    Mail__Password: ${SMTP_PASSWORD:?Set SMTP_PASSWORD}
+  volumes: ["app-data:/data"]
+  networks: [private]
+  logging: *bounded-logging
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+services:
+  app:
+    <<: *app
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m,uid=1654,gid=1654"]
+    pids_limit: 128
+    mem_limit: 512m
+  migrate:
+    <<: *app
+    profiles: ["tools"]
+    command: ["--migrate"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+  caddy:
+    image: hearth-caddy:${RELEASE_TAG:-local}
+    build: { context: ., dockerfile: deploy/Dockerfile.dependencies, target: caddy }
+    restart: unless-stopped
+    logging: *bounded-logging
+    security_opt: ["no-new-privileges:true"]
+    environment: { DOMAIN: "${DOMAIN}" }
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      private: { ipv4_address: 172.30.0.2 }
+    depends_on: [app]
+  postgres:
+    image: hearth-postgres:${RELEASE_TAG:-local}
+    build: { context: ., dockerfile: deploy/Dockerfile.dependencies, target: postgres }
+    restart: unless-stopped
+    logging: *bounded-logging
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      POSTGRES_USER: hearth
+      POSTGRES_DB: hearth
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hearth -d hearth"]
+      interval: 5s
+      retries: 10
+  redis:
+    image: hearth-redis:${RELEASE_TAG:-local}
+    build: { context: ., dockerfile: deploy/Dockerfile.dependencies, target: redis }
+    restart: unless-stopped
+    logging: *bounded-logging
+    security_opt: ["no-new-privileges:true"]
+    environment: { REDIS_PASSWORD: "${REDIS_PASSWORD}" }
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no --maxmemory 64mb --maxmemory-policy allkeys-lru"]
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 5s
+      retries: 10
+networks:
+  private:
+    ipam:
+      # Keep automatic allocations away from Caddy's trusted static address.
+      config: [{ subnet: 172.30.0.0/24, ip_range: 172.30.0.128/25 }]
+volumes:
+  app-data:
+  postgres-data:
+  caddy-data:
+  caddy-config:
