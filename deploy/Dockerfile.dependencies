@@ -1,13 +1,13 @@
 # Rebuild small Go executables with patched toolchain/modules instead of retaining
 # the older embedded Go runtimes shipped in the upstream service images.
 ARG CADDY_VERSION=2.11.7
-FROM golang:1.27.2-alpine AS gosu-build
+FROM golang:1.27.4-alpine AS gosu-build
 WORKDIR /build
 RUN go mod init hearth/gosu-build \
     && go get github.com/tianon/gosu@1.19 github.com/moby/sys/user@v0.4.1 golang.org/x/sys@v0.44.0 \
     && CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /out/gosu github.com/tianon/gosu
 
-FROM golang:1.27.2-alpine AS caddy-build
+FROM golang:1.27.4-alpine AS caddy-build
 ARG CADDY_VERSION
 WORKDIR /build
 RUN go mod init hearth/caddy-build \
