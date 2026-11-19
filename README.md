@@ -2,6 +2,8 @@
 
 A full-stack community chat application built as an engineering portfolio project. Hearth combines a React interface with a feature-organized ASP.NET Core Minimal API, PostgreSQL, SignalR, and Redis.
 
+<img width="1710" height="1060" alt="image" src="https://github.com/user-attachments/assets/af4fce55-fd52-4a16-9bfa-573a2daa36c9" />
+
 Run it locally to explore the application. Local development uses a bundled email catcher and requires no API keys, external email account, or public domain. Optional production deployment files are included.
 
 ## Features
