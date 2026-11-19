@@ -5,7 +5,7 @@ RUN npm ci --no-audit --no-fund
 COPY web/ ./
 RUN npm run build
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.402-alpine3.24 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0.100-alpine3.24 AS build
 WORKDIR /source
 COPY global.json Directory.Build.props Directory.Packages.props Hearth.slnx ./
 COPY src/ src/
